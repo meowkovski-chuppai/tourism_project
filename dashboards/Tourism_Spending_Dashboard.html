@@ -1,0 +1,583 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>방한 외국인 소비 지출 분석 — BUS964 Team 5</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: 'Segoe UI', -apple-system, sans-serif; background: #0f172a; color: #e2e8f0; }
+
+  .header {
+    background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+    padding: 32px 40px; border-bottom: 1px solid #334155;
+  }
+  .header h1 { font-size: 28px; font-weight: 700; color: #f1f5f9; }
+  .header p { color: #94a3b8; margin-top: 6px; font-size: 14px; }
+
+  .kpi-row {
+    display: grid; grid-template-columns: repeat(5, 1fr); gap: 16px;
+    padding: 24px 40px;
+  }
+  .kpi {
+    background: #1e293b; border-radius: 12px; padding: 20px;
+    border: 1px solid #334155; transition: transform 0.2s;
+  }
+  .kpi:hover { transform: translateY(-2px); border-color: #60a5fa; }
+  .kpi-label { font-size: 12px; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.5px; }
+  .kpi-value { font-size: 28px; font-weight: 700; margin: 8px 0 4px; }
+  .kpi-sub { font-size: 12px; color: #64748b; }
+  .kpi-trend { font-size: 13px; }
+  .trend-up { color: #34d399; }
+  .trend-down { color: #f87171; }
+
+  .grid { display: grid; gap: 20px; padding: 0 40px 24px; }
+  .grid-2 { grid-template-columns: 1fr 1fr; }
+  .grid-3 { grid-template-columns: 1fr 1fr 1fr; }
+  .grid-2-1 { grid-template-columns: 2fr 1fr; }
+
+  .card {
+    background: #1e293b; border-radius: 12px; padding: 24px;
+    border: 1px solid #334155;
+  }
+  .card h3 { font-size: 16px; font-weight: 600; margin-bottom: 16px; color: #f1f5f9; }
+  .card h3 small { font-weight: 400; color: #64748b; font-size: 12px; }
+
+  .chart-container { position: relative; height: 320px; }
+  .chart-container-sm { position: relative; height: 260px; }
+
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th { text-align: left; padding: 10px 12px; color: #94a3b8; border-bottom: 1px solid #334155; font-weight: 500; }
+  td { padding: 10px 12px; border-bottom: 1px solid #1e293b; }
+  tr:hover td { background: rgba(96,165,250,0.05); }
+  .num { text-align: right; font-variant-numeric: tabular-nums; }
+
+  .badge { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 600; }
+  .badge-blue { background: rgba(96,165,250,0.15); color: #60a5fa; }
+  .badge-green { background: rgba(52,211,153,0.15); color: #34d399; }
+  .badge-purple { background: rgba(167,139,250,0.15); color: #a78bfa; }
+  .badge-amber { background: rgba(251,191,36,0.15); color: #fbbf24; }
+  .badge-rose { background: rgba(251,113,133,0.15); color: #fb7185; }
+
+  .insight-box {
+    background: rgba(96,165,250,0.08); border-left: 3px solid #60a5fa;
+    padding: 16px 20px; border-radius: 0 8px 8px 0; margin-top: 16px;
+    font-size: 13px; line-height: 1.7;
+  }
+  .insight-box strong { color: #60a5fa; }
+
+  .section-title {
+    padding: 20px 40px 12px; font-size: 20px; font-weight: 600;
+    color: #f1f5f9; border-top: 1px solid #1e293b; margin-top: 8px;
+  }
+  .section-title span { color: #60a5fa; }
+
+  .bar-h { display: flex; align-items: center; margin: 6px 0; }
+  .bar-h .label { width: 90px; font-size: 12px; color: #94a3b8; }
+  .bar-h .track { flex: 1; height: 20px; background: #0f172a; border-radius: 4px; overflow: hidden; }
+  .bar-h .fill { height: 100%; border-radius: 4px; display: flex; align-items: center; padding-left: 8px; font-size: 11px; font-weight: 600; }
+
+  .footer { text-align: center; padding: 24px; color: #475569; font-size: 12px; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>방한 외국인 소비 지출 종합 분석</h1>
+  <p>BUS964 Team 5 — 국가별 소비 패턴 × 한국 연상이미지 × 업종별 지출 구조 | 데이터: 한국관광데이터랩 2018-2025</p>
+</div>
+
+<!-- KPI Cards -->
+<div class="kpi-row">
+  <div class="kpi">
+    <div class="kpi-label">2024 글로벌 1인 평균 지출</div>
+    <div class="kpi-value" style="color:#60a5fa">$1,877</div>
+    <div class="kpi-trend trend-up">+51.5% vs 2019 ($1,239)</div>
+  </div>
+  <div class="kpi">
+    <div class="kpi-label">최고 지출 국가 (서양권)</div>
+    <div class="kpi-value" style="color:#34d399">$3,311</div>
+    <div class="kpi-sub">미국 | 1인 평균 지출 USD</div>
+  </div>
+  <div class="kpi">
+    <div class="kpi-label">의료/뷰티 비중 (2025)</div>
+    <div class="kpi-value" style="color:#a78bfa">15.2%</div>
+    <div class="kpi-trend trend-up">+63% vs 2019 (9.3%)</div>
+  </div>
+  <div class="kpi">
+    <div class="kpi-label">식음료 비중 성장</div>
+    <div class="kpi-value" style="color:#fbbf24">13.8%</div>
+    <div class="kpi-trend trend-up">+168% 매출 성장 (2019→2024)</div>
+  </div>
+  <div class="kpi">
+    <div class="kpi-label">쇼핑 비중 변화</div>
+    <div class="kpi-value" style="color:#fb7185">37.4%</div>
+    <div class="kpi-trend trend-down">43.3% → 37.4% (구조 전환)</div>
+  </div>
+</div>
+
+<!-- Section 1: Country Spending Comparison -->
+<div class="section-title"><span>01</span> 국가별 1인당 지출 비교</div>
+
+<div class="grid grid-2-1">
+  <div class="card">
+    <h3>2024년 국가별 1인 평균 지출 (USD) <small>행태 및 만족도 조사 기준</small></h3>
+    <div class="chart-container">
+      <canvas id="countrySpendChart"></canvas>
+    </div>
+  </div>
+  <div class="card">
+    <h3>국가 그룹별 지출 프로파일</h3>
+    <table>
+      <tr><th>그룹</th><th class="num">1인 지출</th><th class="num">체류일</th><th class="num">일평균</th></tr>
+      <tr>
+        <td><span class="badge badge-blue">서양/중동</span></td>
+        <td class="num">$2,886</td><td class="num">10.3일</td><td class="num">$365</td>
+      </tr>
+      <tr>
+        <td><span class="badge badge-green">일본</span></td>
+        <td class="num">$984</td><td class="num">3.7일</td><td class="num">$282</td>
+      </tr>
+      <tr>
+        <td><span class="badge badge-amber">중국</span></td>
+        <td class="num">$1,859</td><td class="num">6.8일</td><td class="num">$333</td>
+      </tr>
+      <tr>
+        <td><span class="badge badge-purple">동남아</span></td>
+        <td class="num">$1,639</td><td class="num">6.5일</td><td class="num">$292</td>
+      </tr>
+      <tr>
+        <td><span class="badge badge-rose">인도/중앙아</span></td>
+        <td class="num">$2,530</td><td class="num">11.0일</td><td class="num">$318</td>
+      </tr>
+    </table>
+    <div class="insight-box">
+      <strong>핵심 발견:</strong> 서양권 관광객은 1인당 $2,886로 일본($984) 대비 <strong>약 3배</strong> 지출.
+      체류기간도 10.3일로 길어 총 소비 가치가 압도적.
+      일일 지출도 $365로 최고 — <strong>고부가가치 관광객의 대표 그룹.</strong>
+    </div>
+  </div>
+</div>
+
+<!-- Section 2: Category Breakdown -->
+<div class="section-title"><span>02</span> 업종별 소비 구조 변화 (2018→2025)</div>
+
+<div class="grid grid-2">
+  <div class="card">
+    <h3>업종 카테고리별 비중 추이 <small>2018-2025</small></h3>
+    <div class="chart-container">
+      <canvas id="categoryTrendChart"></canvas>
+    </div>
+  </div>
+  <div class="card">
+    <h3>2024 업종별 소비액 & 성장률</h3>
+    <div class="chart-container">
+      <canvas id="categoryGrowthChart"></canvas>
+    </div>
+  </div>
+</div>
+
+<div class="grid grid-2">
+  <div class="card">
+    <h3>2024 서울 vs 비서울 소비 구조</h3>
+    <div class="chart-container-sm">
+      <canvas id="seoulChart"></canvas>
+    </div>
+    <div class="insight-box" style="margin-top:12px">
+      <strong>서울 집중도:</strong> 의료/뷰티(16.4% vs 6.2%), 쇼핑(46.9% vs 27.7%)이 서울에 집중.
+      반면 숙박(15.3% vs 32.4%), 교통(2.7% vs 16.0%)은 지방이 높음 →
+      <strong>서울=쇼핑·뷰티 허브, 지방=체류·이동 중심</strong> 구조.
+    </div>
+  </div>
+  <div class="card">
+    <h3>소비 구조 전환 인사이트</h3>
+    <div style="padding: 8px 0;">
+      <div class="bar-h">
+        <div class="label">쇼핑</div>
+        <div class="track"><div class="fill" style="width:78%; background: linear-gradient(90deg, #fb7185 40%, #60a5fa);">
+          43.3% → 37.4% <span style="margin-left:8px; opacity:0.7">↓구조전환</span>
+        </div></div>
+      </div>
+      <div class="bar-h">
+        <div class="label">의료/뷰티</div>
+        <div class="track"><div class="fill" style="width:58%; background: linear-gradient(90deg, #a78bfa, #34d399);">
+          9.3% → 15.2% <span style="margin-left:8px; opacity:0.7">↑급성장</span>
+        </div></div>
+      </div>
+      <div class="bar-h">
+        <div class="label">식음료</div>
+        <div class="track"><div class="fill" style="width:52%; background: linear-gradient(90deg, #fbbf24, #34d399);">
+          9.4% → 13.8% <span style="margin-left:8px; opacity:0.7">↑K-Food</span>
+        </div></div>
+      </div>
+      <div class="bar-h">
+        <div class="label">숙박</div>
+        <div class="track"><div class="fill" style="width:50%; background: linear-gradient(90deg, #60a5fa 60%, #fb7185);">
+          25.4% → 21.2% <span style="margin-left:8px; opacity:0.7">↓비중감소</span>
+        </div></div>
+      </div>
+      <div class="bar-h">
+        <div class="label">교통</div>
+        <div class="track"><div class="fill" style="width:35%; background: #60a5fa;">
+          6.4% → 8.5% <span style="margin-left:8px; opacity:0.7">↑지방확산</span>
+        </div></div>
+      </div>
+      <div class="bar-h">
+        <div class="label">레저/문화</div>
+        <div class="track"><div class="fill" style="width:18%; background: #64748b;">
+          5.9% → 3.7% <span style="margin-left:8px; opacity:0.7">↓위축</span>
+        </div></div>
+      </div>
+    </div>
+    <div class="insight-box">
+      <strong>구조 전환 시그널:</strong> 쇼핑 의존도가 줄고, <strong>의료/뷰티(+63%)</strong>와 <strong>식음료(+47%)</strong>가
+      핵심 성장 축으로 부상. 이는 한류 콘텐츠(K-Beauty, K-Food)가
+      실제 소비로 전환되는 패턴과 일치.
+    </div>
+  </div>
+</div>
+
+<!-- Section 3: Image Associations -->
+<div class="section-title"><span>03</span> 한국 연상이미지 × 소비 연결고리</div>
+
+<div class="grid grid-3">
+  <div class="card">
+    <h3>서양/중동 연상이미지</h3>
+    <div class="chart-container-sm">
+      <canvas id="imageWesternChart"></canvas>
+    </div>
+    <p style="font-size:12px; color:#94a3b8; margin-top:8px; text-align:center;">
+      한국 음식 + K-POP 양대축<br>뷰티 제품 인지도 상승 중
+    </p>
+  </div>
+  <div class="card">
+    <h3>일본/중국 연상이미지</h3>
+    <div class="chart-container-sm">
+      <canvas id="imageAsiaChart"></canvas>
+    </div>
+    <p style="font-size:12px; color:#94a3b8; margin-top:8px; text-align:center;">
+      일본: 음식(28%) 압도적 1위<br>중국: 드라마 + 뷰티서비스 특이
+    </p>
+  </div>
+  <div class="card">
+    <h3>동남아/인도 연상이미지</h3>
+    <div class="chart-container-sm">
+      <canvas id="imageSEAChart"></canvas>
+    </div>
+    <p style="font-size:12px; color:#94a3b8; margin-top:8px; text-align:center;">
+      K-POP 주도 → K-Food/드라마 후속<br>웹툰 영향력 동남아에서 급성장
+    </p>
+  </div>
+</div>
+
+<div class="grid grid-2">
+  <div class="card">
+    <h3>연상이미지 #1 랭킹 — 국가별 (2022)</h3>
+    <table>
+      <tr><th>국가</th><th>그룹</th><th>#1 연상이미지</th><th class="num">비율</th></tr>
+      <tr><td>인도네시아</td><td><span class="badge badge-purple">동남아</span></td><td>K-POP</td><td class="num">27.9%</td></tr>
+      <tr><td>일본</td><td><span class="badge badge-green">일본</span></td><td>한국 음식</td><td class="num">27.8%</td></tr>
+      <tr><td>말레이시아</td><td><span class="badge badge-purple">동남아</span></td><td>K-POP</td><td class="num">26.8%</td></tr>
+      <tr><td>일본(K-POP)</td><td><span class="badge badge-green">일본</span></td><td>K-POP</td><td class="num">25.6%</td></tr>
+      <tr><td>카자흐스탄</td><td><span class="badge badge-blue">서양/중동</span></td><td>한국 음식</td><td class="num">23.5%</td></tr>
+      <tr><td>대만</td><td><span class="badge badge-purple">동남아</span></td><td>한국 음식</td><td class="num">22.8%</td></tr>
+      <tr><td>캐나다</td><td><span class="badge badge-blue">서양/중동</span></td><td>한국 음식</td><td class="num">21.9%</td></tr>
+      <tr><td>태국</td><td><span class="badge badge-purple">동남아</span></td><td>K-POP</td><td class="num">21.3%</td></tr>
+      <tr><td>호주</td><td><span class="badge badge-blue">서양/중동</span></td><td>K-POP</td><td class="num">19.1%</td></tr>
+      <tr><td>러시아</td><td><span class="badge badge-blue">서양/중동</span></td><td>한국 음식</td><td class="num">18.5%</td></tr>
+      <tr><td>영국</td><td><span class="badge badge-blue">서양/중동</span></td><td>K-POP</td><td class="num">17.9%</td></tr>
+      <tr><td>멕시코</td><td><span class="badge badge-blue">서양/중동</span></td><td>K-POP</td><td class="num">17.5%</td></tr>
+      <tr><td>미국</td><td><span class="badge badge-blue">서양/중동</span></td><td>한국 음식</td><td class="num">16.7%</td></tr>
+      <tr><td>튀르키예</td><td><span class="badge badge-blue">서양/중동</span></td><td>한국 전쟁</td><td class="num">16.6%</td></tr>
+      <tr><td>베트남</td><td><span class="badge badge-purple">동남아</span></td><td>한국 음식</td><td class="num">16.2%</td></tr>
+      <tr><td>중국</td><td><span class="badge badge-amber">중국</span></td><td>한국 음식</td><td class="num">15.8%</td></tr>
+      <tr><td>프랑스</td><td><span class="badge badge-blue">서양/중동</span></td><td>K-POP</td><td class="num">14.8%</td></tr>
+      <tr><td>독일</td><td><span class="badge badge-blue">서양/중동</span></td><td>한국 음식</td><td class="num">14.7%</td></tr>
+      <tr><td>인도</td><td><span class="badge badge-rose">인도/중앙아</span></td><td>K-POP</td><td class="num">11.4%</td></tr>
+    </table>
+  </div>
+  <div class="card">
+    <h3>연상이미지 → 소비 전환 매핑</h3>
+    <div style="margin: 12px 0;">
+      <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+        <div style="background:#0f172a; padding:16px; border-radius:8px;">
+          <div style="font-size:14px; font-weight:600; color:#fbbf24; margin-bottom:8px;">한국 음식 → 식음료업</div>
+          <div style="font-size:12px; color:#94a3b8; line-height:1.6;">
+            연상이미지 1위 국가: 11개국/19<br>
+            식음료 지출 성장: <strong style="color:#34d399">+168%</strong><br>
+            2025 비중: 13.8% (역대 최고)
+          </div>
+        </div>
+        <div style="background:#0f172a; padding:16px; border-radius:8px;">
+          <div style="font-size:14px; font-weight:600; color:#a78bfa; margin-bottom:8px;">K-Beauty → 의료/뷰티</div>
+          <div style="font-size:12px; color:#94a3b8; line-height:1.6;">
+            서양권 뷰티 인지도: 9.0%<br>
+            의료/뷰티 성장: <strong style="color:#34d399">+132%</strong><br>
+            2025 비중: 15.2% (폭발적 성장)
+          </div>
+        </div>
+        <div style="background:#0f172a; padding:16px; border-radius:8px;">
+          <div style="font-size:14px; font-weight:600; color:#60a5fa; margin-bottom:8px;">K-POP/한류 → 쇼핑</div>
+          <div style="font-size:12px; color:#94a3b8; line-height:1.6;">
+            연상이미지 1위 국가: 8개국/19<br>
+            대형쇼핑몰: 16.2% (2위)<br>
+            면세점 비중: 하락 추세
+          </div>
+        </div>
+        <div style="background:#0f172a; padding:16px; border-radius:8px;">
+          <div style="font-size:14px; font-weight:600; color:#fb7185; margin-bottom:8px;">한국 드라마 → 지방 관광</div>
+          <div style="font-size:12px; color:#94a3b8; line-height:1.6;">
+            촬영지 방문 → 지방 소비 확대<br>
+            교통 성장: <strong style="color:#34d399">+149%</strong><br>
+            비서울 교통 비중: 16.0%
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="insight-box">
+      <strong>핵심 메시지:</strong> 한류 콘텐츠 관심은 <strong>실제 소비 행동으로 전환</strong>되고 있다.
+      K-Food → 식음료 +168%, K-Beauty → 의료/뷰티 +132%.
+      특히 서양권은 높은 1인 지출($2,886)과 한국 음식·뷰티 인지도가 결합되어
+      <strong>가장 높은 소비 전환 잠재력</strong>을 보유.
+    </div>
+  </div>
+</div>
+
+<!-- Section 4: Strategic Implications -->
+<div class="section-title"><span>04</span> 전략적 시사점: 마케팅 포커스 영역</div>
+
+<div class="grid grid-3">
+  <div class="card" style="border-color: #34d399;">
+    <h3 style="color:#34d399;">Priority 1: 서양권 K-Food 마케팅</h3>
+    <div style="font-size:13px; line-height:1.8; color:#cbd5e1;">
+      <p><strong>근거:</strong></p>
+      <p>• 서양권 1인당 지출 $2,909 (최고)</p>
+      <p>• "한국 음식" 연상이미지 1위 (미국·캐나다·독일·러시아)</p>
+      <p>• 식음료 업종 성장률 +168%</p>
+      <p>• 체류기간 10.4일로 장기 소비</p>
+      <p style="margin-top:12px;"><strong>액션:</strong></p>
+      <p>K-Food 체험 관광 패키지, 한식 미슐랭 투어, 요리 클래스 등 고부가가치 프로그램 확대</p>
+    </div>
+  </div>
+  <div class="card" style="border-color: #a78bfa;">
+    <h3 style="color:#a78bfa;">Priority 2: K-Beauty 의료관광 강화</h3>
+    <div style="font-size:13px; line-height:1.8; color:#cbd5e1;">
+      <p><strong>근거:</strong></p>
+      <p>• 의료/뷰티 비중 9.3% → 15.2% (6년간)</p>
+      <p>• 서울 집중 (16.4% vs 비서울 6.2%)</p>
+      <p>• 중국: 뷰티서비스(7.3%) + 뷰티제품(6.4%) 합산 13.7%</p>
+      <p>• 의료관광 단가: 서울 전체 2위 카테고리</p>
+      <p style="margin-top:12px;"><strong>액션:</strong></p>
+      <p>피부과/성형/한방 의료관광 + K-Beauty 쇼핑 원스톱 패키지. 동남아·중국 타겟 뷰티 투어 상품화</p>
+    </div>
+  </div>
+  <div class="card" style="border-color: #fbbf24;">
+    <h3 style="color:#fbbf24;">Priority 3: 지방 분산 + 한류 콘텐츠 연계</h3>
+    <div style="font-size:13px; line-height:1.8; color:#cbd5e1;">
+      <p><strong>근거:</strong></p>
+      <p>• 비서울 교통 비중 16% — 이동 수요 존재</p>
+      <p>• 한국 드라마 연상 비율 8-11% (전 그룹)</p>
+      <p>• 비서울 숙박 비중 32.4% (서울의 2배)</p>
+      <p>• 교통 성장 +149% (2019→2024)</p>
+      <p style="margin-top:12px;"><strong>액션:</strong></p>
+      <p>K-Drama 촬영지 투어, 지방 한식 투어 등 서울 외 관광 콘텐츠 개발. 렌터카·KTX 패키지 연계</p>
+    </div>
+  </div>
+</div>
+
+<div class="footer">
+  BUS964 Team 5 | 방한 외국인 소비 지출 종합 분석 | 데이터: 한국관광데이터랩, 외래관광객 실태조사 (2015-2025)
+</div>
+
+<script>
+// Color palette
+const colors = {
+  blue: '#60a5fa', green: '#34d399', purple: '#a78bfa',
+  amber: '#fbbf24', rose: '#fb7185', slate: '#64748b',
+  cyan: '#22d3ee', emerald: '#10b981'
+};
+
+Chart.defaults.color = '#94a3b8';
+Chart.defaults.font.family = "'Segoe UI', sans-serif";
+Chart.defaults.plugins.legend.labels.boxWidth = 12;
+
+// --- Chart 1: Country Spending Bar ---
+new Chart(document.getElementById('countrySpendChart'), {
+  type: 'bar',
+  data: {
+    labels: ['미국','영국','프랑스','캐나다','독일','인도','호주','러시아','몽골','싱가포르','인도네시아','중국','홍콩','말레이시아','태국','대만','베트남','필리핀','일본'],
+    datasets: [{
+      label: '1인 평균 지출 (USD)',
+      data: [3311,3041,2988,2973,2835,2715,2577,2477,2346,2112,1909,1859,1797,1777,1580,1489,1472,1438,984],
+      backgroundColor: [
+        colors.blue,colors.blue,colors.blue,colors.blue,colors.blue,
+        colors.rose,colors.blue,colors.blue,colors.rose,
+        colors.purple,colors.purple,colors.amber,colors.purple,
+        colors.purple,colors.purple,colors.purple,colors.purple,colors.purple,
+        colors.green
+      ],
+      borderRadius: 4,
+    }]
+  },
+  options: {
+    indexAxis: 'y',
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+      legend: { display: false },
+      tooltip: {
+        callbacks: {
+          label: ctx => `$${ctx.raw.toLocaleString()}`
+        }
+      }
+    },
+    scales: {
+      x: { grid: { color: '#1e293b' }, ticks: { callback: v => '$'+v.toLocaleString() } },
+      y: { grid: { display: false } }
+    }
+  }
+});
+
+// --- Chart 2: Category Trend Stacked Area ---
+new Chart(document.getElementById('categoryTrendChart'), {
+  type: 'line',
+  data: {
+    labels: ['2018','2019','2023','2024','2025'],
+    datasets: [
+      { label: '쇼핑', data: [45.4,43.3,38.2,38.2,37.4], borderColor: colors.rose, backgroundColor: 'rgba(251,113,133,0.1)', fill: true, tension: 0.3 },
+      { label: '숙박', data: [25.8,25.4,24.7,23.0,21.2], borderColor: colors.blue, backgroundColor: 'rgba(96,165,250,0.1)', fill: true, tension: 0.3 },
+      { label: '의료/뷰티', data: [9.1,9.3,9.1,11.8,15.2], borderColor: colors.purple, backgroundColor: 'rgba(167,139,250,0.1)', fill: true, tension: 0.3 },
+      { label: '식음료', data: [8.0,9.4,13.5,13.8,13.8], borderColor: colors.amber, backgroundColor: 'rgba(251,191,36,0.1)', fill: true, tension: 0.3 },
+      { label: '교통', data: [6.0,6.4,9.3,8.7,8.5], borderColor: colors.cyan, backgroundColor: 'rgba(34,211,238,0.1)', fill: true, tension: 0.3 },
+      { label: '레저/문화', data: [5.4,5.9,4.9,4.3,3.7], borderColor: colors.slate, backgroundColor: 'rgba(100,116,139,0.1)', fill: true, tension: 0.3 },
+    ]
+  },
+  options: {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: { legend: { position: 'top' } },
+    scales: {
+      y: { grid: { color: '#1e293b' }, ticks: { callback: v => v+'%' } },
+      x: { grid: { color: '#1e293b' } }
+    }
+  }
+});
+
+// --- Chart 3: Category Growth Bubble ---
+new Chart(document.getElementById('categoryGrowthChart'), {
+  type: 'bar',
+  data: {
+    labels: ['식음료','교통','의료/뷰티','숙박','쇼핑','레저/문화'],
+    datasets: [{
+      label: '2019→2024 성장률 (%)',
+      data: [167.8, 148.9, 132.0, 65.6, 61.5, 33.1],
+      backgroundColor: [colors.amber, colors.cyan, colors.purple, colors.blue, colors.rose, colors.slate],
+      borderRadius: 6,
+    }]
+  },
+  options: {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+      legend: { display: false },
+      tooltip: { callbacks: { label: ctx => '+'+ctx.raw+'%' } }
+    },
+    scales: {
+      y: { grid: { color: '#1e293b' }, ticks: { callback: v => '+'+v+'%' } },
+      x: { grid: { display: false } }
+    }
+  }
+});
+
+// --- Chart 4: Seoul vs Non-Seoul ---
+new Chart(document.getElementById('seoulChart'), {
+  type: 'radar',
+  data: {
+    labels: ['쇼핑','의료/뷰티','숙박','식음료','레저/문화','교통'],
+    datasets: [
+      { label: '서울', data: [46.9,16.4,15.3,13.7,5.0,2.7], borderColor: colors.blue, backgroundColor: 'rgba(96,165,250,0.15)', pointBackgroundColor: colors.blue },
+      { label: '비서울', data: [27.7,6.2,32.4,14.0,3.4,16.0], borderColor: colors.amber, backgroundColor: 'rgba(251,191,36,0.15)', pointBackgroundColor: colors.amber },
+    ]
+  },
+  options: {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: { legend: { position: 'top' } },
+    scales: {
+      r: {
+        grid: { color: '#334155' },
+        angleLines: { color: '#334155' },
+        ticks: { display: false },
+        pointLabels: { color: '#e2e8f0', font: { size: 12 } }
+      }
+    }
+  }
+});
+
+// --- Chart 5: Western Image ---
+new Chart(document.getElementById('imageWesternChart'), {
+  type: 'doughnut',
+  data: {
+    labels: ['한국 음식','K-POP','한국 전쟁','한국 뷰티 제품','한국 드라마'],
+    datasets: [{
+      data: [14.1, 13.7, 11.4, 9.0, 8.6],
+      backgroundColor: [colors.amber, colors.rose, colors.slate, colors.purple, colors.blue],
+      borderWidth: 0,
+    }]
+  },
+  options: {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+      legend: { position: 'bottom', labels: { font: { size: 11 } } },
+      tooltip: { callbacks: { label: ctx => ctx.label+': '+ctx.raw+'%' } }
+    }
+  }
+});
+
+// --- Chart 6: Japan/China Image ---
+new Chart(document.getElementById('imageAsiaChart'), {
+  type: 'bar',
+  data: {
+    labels: ['한국 음식','K-POP','한국 드라마','한류 스타','뷰티서비스','뷰티 제품','한글/한국어'],
+    datasets: [
+      { label: '일본', data: [27.8,25.6,8.2,9.2,null,null,6.1], backgroundColor: colors.green, borderRadius: 4 },
+      { label: '중국', data: [15.8,null,11.0,6.5,7.3,6.4,null], backgroundColor: colors.amber, borderRadius: 4 },
+    ]
+  },
+  options: {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: { legend: { position: 'top' } },
+    scales: {
+      y: { grid: { color: '#1e293b' }, ticks: { callback: v => v+'%' } },
+      x: { grid: { display: false }, ticks: { font: { size: 10 } } }
+    }
+  }
+});
+
+// --- Chart 7: Southeast Asia Image ---
+new Chart(document.getElementById('imageSEAChart'), {
+  type: 'doughnut',
+  data: {
+    labels: ['K-POP','한국 음식','한국 드라마','한류 스타','한국 웹툰'],
+    datasets: [{
+      data: [19.8, 16.7, 10.9, 9.4, 9.0],
+      backgroundColor: [colors.rose, colors.amber, colors.blue, colors.green, colors.cyan],
+      borderWidth: 0,
+    }]
+  },
+  options: {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+      legend: { position: 'bottom', labels: { font: { size: 11 } } },
+      tooltip: { callbacks: { label: ctx => ctx.label+': '+ctx.raw+'%' } }
+    }
+  }
+});
+</script>
+
+</body>
+</html>

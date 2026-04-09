@@ -1,0 +1,897 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>V4 방한 관광 수요예측 대시보드</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.5.1" integrity="sha384-jb8JQMbMoBUzgWatfe6COACi2ljcDdZQ2OxczGA3bGNeWe+6DChMTBJemed7ZnvJ" crossorigin="anonymous"></script>
+    <style>
+        :root {
+            --bg-primary: #f0f2f5;
+            --bg-card: #ffffff;
+            --bg-header: #0f172a;
+            --text-primary: #1e293b;
+            --text-secondary: #64748b;
+            --text-on-dark: #f1f5f9;
+            --accent: #3b82f6;
+            --positive: #10b981;
+            --negative: #ef4444;
+            --warning: #f59e0b;
+            --A1: #3b82f6;
+            --A2: #8b5cf6;
+            --B: #f59e0b;
+            --C: #ef4444;
+            --gap: 16px;
+            --radius: 12px;
+        }
+        * { margin:0; padding:0; box-sizing:border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Noto Sans KR', sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            line-height: 1.6;
+        }
+        .dashboard { max-width: 1440px; margin: 0 auto; padding: var(--gap); }
+
+        /* Header */
+        .header {
+            background: linear-gradient(135deg, #0f172a 0%, #1e3a5f 100%);
+            color: var(--text-on-dark);
+            padding: 28px 32px;
+            border-radius: var(--radius);
+            margin-bottom: var(--gap);
+            display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 16px;
+        }
+        .header h1 { font-size: 22px; font-weight: 700; letter-spacing: -0.5px; }
+        .header .subtitle { font-size: 13px; opacity: 0.7; margin-top: 4px; }
+        .filters { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+        .filter-group { display: flex; align-items: center; gap: 6px; }
+        .filter-group label { font-size: 12px; color: rgba(255,255,255,0.6); }
+        .filter-group select {
+            padding: 7px 12px; border: 1px solid rgba(255,255,255,0.2);
+            border-radius: 6px; background: rgba(255,255,255,0.1);
+            color: #fff; font-size: 13px; cursor: pointer;
+        }
+        .filter-group select option { background: #1e293b; color: #fff; }
+
+        /* Version comparison banner */
+        .version-banner {
+            display: grid; grid-template-columns: repeat(4, 1fr); gap: var(--gap);
+            margin-bottom: var(--gap);
+        }
+        .version-card {
+            background: var(--bg-card); border-radius: var(--radius);
+            padding: 20px 24px; box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+            border-top: 4px solid #cbd5e1; position: relative; overflow: hidden;
+        }
+        .version-card.active { border-top-color: var(--accent); }
+        .version-card.active::after {
+            content: '현재'; position: absolute; top: 8px; right: 12px;
+            font-size: 10px; background: var(--accent); color: #fff;
+            padding: 2px 8px; border-radius: 10px; font-weight: 600;
+        }
+        .version-card .ver-label { font-size: 18px; font-weight: 700; margin-bottom: 8px; }
+        .version-card .ver-rmse { font-size: 14px; color: var(--text-secondary); }
+        .version-card .ver-rmse span { font-size: 24px; font-weight: 700; color: var(--text-primary); display: block; }
+        .version-card .ver-mape { font-size: 13px; margin-top: 4px; }
+        .version-card .ver-improvement {
+            font-size: 13px; font-weight: 600; margin-top: 8px;
+            padding: 3px 8px; border-radius: 6px; display: inline-block;
+        }
+        .ver-improvement.good { background: #d1fae5; color: #065f46; }
+        .ver-improvement.base { background: #e2e8f0; color: #475569; }
+
+        /* KPI row */
+        .kpi-row { display: grid; grid-template-columns: repeat(5, 1fr); gap: var(--gap); margin-bottom: var(--gap); }
+        .kpi-card {
+            background: var(--bg-card); border-radius: var(--radius);
+            padding: 18px 22px; box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+        }
+        .kpi-label { font-size: 12px; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px; }
+        .kpi-value { font-size: 26px; font-weight: 700; }
+        .kpi-sub { font-size: 12px; margin-top: 4px; }
+        .kpi-sub.positive { color: var(--positive); }
+        .kpi-sub.negative { color: var(--negative); }
+
+        /* Chart rows */
+        .chart-row { display: grid; grid-template-columns: 2fr 1fr; gap: var(--gap); margin-bottom: var(--gap); }
+        .chart-row.equal { grid-template-columns: 1fr 1fr; }
+        .chart-row.triple { grid-template-columns: 1fr 1fr 1fr; }
+        .chart-row.full { grid-template-columns: 1fr; }
+        .chart-box {
+            background: var(--bg-card); border-radius: var(--radius);
+            padding: 22px 26px; box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+        }
+        .chart-box h3 { font-size: 14px; font-weight: 600; margin-bottom: 14px; color: var(--text-primary); }
+        .chart-box .chart-sub { font-size: 12px; color: var(--text-secondary); margin-bottom: 10px; }
+        .chart-box canvas { max-height: 320px; }
+
+        /* Group cards */
+        .group-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: var(--gap); margin-bottom: var(--gap); }
+        .group-card {
+            background: var(--bg-card); border-radius: var(--radius);
+            padding: 20px 22px; box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+            border-left: 5px solid #cbd5e1; cursor: pointer; transition: all 0.15s;
+        }
+        .group-card:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
+        .group-card.selected { box-shadow: 0 4px 12px rgba(0,0,0,0.12); }
+        .group-card .g-name { font-size: 13px; font-weight: 700; margin-bottom: 2px; }
+        .group-card .g-countries { font-size: 11px; color: var(--text-secondary); margin-bottom: 10px; }
+        .group-card .g-metrics { display: flex; gap: 16px; }
+        .group-card .g-metric-box .g-metric-label { font-size: 10px; color: var(--text-secondary); text-transform: uppercase; }
+        .group-card .g-metric-box .g-metric-val { font-size: 18px; font-weight: 700; }
+        .group-card .g-model { font-size: 11px; margin-top: 8px; padding: 2px 8px; border-radius: 10px; display: inline-block; background: #f1f5f9; color: var(--text-secondary); }
+        .group-card .g-vs-bl { font-size: 11px; margin-top: 6px; }
+        .group-card .g-vs-bl.win { color: var(--positive); }
+        .group-card .g-vs-bl.lose { color: var(--negative); }
+
+        /* Table */
+        .table-section {
+            background: var(--bg-card); border-radius: var(--radius);
+            padding: 22px 26px; box-shadow: 0 1px 3px rgba(0,0,0,0.06); overflow-x: auto;
+        }
+        .table-section h3 { font-size: 14px; font-weight: 600; margin-bottom: 14px; }
+        .data-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+        .data-table thead th {
+            text-align: left; padding: 10px 12px; border-bottom: 2px solid #e2e8f0;
+            color: var(--text-secondary); font-weight: 600; font-size: 11px;
+            text-transform: uppercase; letter-spacing: 0.5px; cursor: pointer; user-select: none; white-space: nowrap;
+        }
+        .data-table thead th:hover { color: var(--text-primary); background: #f8fafc; }
+        .data-table tbody td { padding: 10px 12px; border-bottom: 1px solid #f1f5f9; }
+        .data-table tbody tr:hover { background: #f8fafc; }
+        .data-table .num { text-align: right; font-variant-numeric: tabular-nums; }
+        .badge { padding: 2px 8px; border-radius: 10px; font-size: 11px; font-weight: 600; }
+        .badge-a1 { background: #dbeafe; color: #1e40af; }
+        .badge-a2 { background: #ede9fe; color: #5b21b6; }
+        .badge-b { background: #fef3c7; color: #92400e; }
+        .badge-c { background: #fee2e2; color: #991b1b; }
+
+        /* Feature importance */
+        .feat-bar-container { margin-bottom: 6px; display: flex; align-items: center; gap: 8px; }
+        .feat-name { font-size: 11px; color: var(--text-secondary); width: 160px; text-align: right; flex-shrink: 0; }
+        .feat-bar-bg { flex: 1; height: 18px; background: #f1f5f9; border-radius: 4px; overflow: hidden; }
+        .feat-bar { height: 100%; border-radius: 4px; transition: width 0.4s ease; }
+        .feat-val { font-size: 11px; color: var(--text-secondary); width: 40px; flex-shrink: 0; }
+
+        .footer {
+            text-align: center; padding: 20px; font-size: 12px; color: var(--text-secondary);
+        }
+
+        @media (max-width: 1024px) {
+            .version-banner { grid-template-columns: repeat(2, 1fr); }
+            .kpi-row { grid-template-columns: repeat(3, 1fr); }
+            .chart-row, .chart-row.equal { grid-template-columns: 1fr; }
+            .group-grid { grid-template-columns: repeat(2, 1fr); }
+        }
+        @media (max-width: 640px) {
+            .kpi-row { grid-template-columns: repeat(2, 1fr); }
+            .group-grid { grid-template-columns: 1fr; }
+            .version-banner { grid-template-columns: 1fr; }
+        }
+        @media print {
+            body { background: #fff; }
+            .dashboard { max-width: none; }
+            .filters { display: none; }
+            .chart-box, .group-card, .kpi-card, .version-card { break-inside: avoid; box-shadow: none; border: 1px solid #e2e8f0; }
+        }
+    </style>
+</head>
+<body>
+<div class="dashboard">
+
+    <!-- HEADER -->
+    <header class="header">
+        <div>
+            <h1>V4 방한 관광 수요예측 대시보드</h1>
+            <div class="subtitle">BUS964 Team 5 · 테스트 기간: 2024.07 ~ 2024.12 (6개월) · 24개국 4그룹</div>
+        </div>
+        <div class="filters">
+            <div class="filter-group">
+                <label>그룹</label>
+                <select id="filter-group" onchange="dashboard.applyFilters()">
+                    <option value="all">전체</option>
+                    <option value="A1_western_surge">A1 서양권 급증</option>
+                    <option value="A2_asia_surge">A2 아시아 급증</option>
+                    <option value="B_recovering">B 회복중</option>
+                    <option value="C_underperform">C 미회복</option>
+                </select>
+            </div>
+            <div class="filter-group">
+                <label>국가</label>
+                <select id="filter-country" onchange="dashboard.applyFilters()">
+                    <option value="all">전체</option>
+                </select>
+            </div>
+        </div>
+    </header>
+
+    <!-- VERSION COMPARISON -->
+    <section class="version-banner" id="version-banner"></section>
+
+    <!-- KPI ROW -->
+    <section class="kpi-row" id="kpi-row"></section>
+
+    <!-- GROUP CARDS -->
+    <section class="group-grid" id="group-grid"></section>
+
+    <!-- CHARTS ROW 1: Monthly Actual vs Predicted -->
+    <section class="chart-row full">
+        <div class="chart-box">
+            <h3>월별 실제 vs 예측 방문객 (전체 합산)</h3>
+            <div class="chart-sub" id="chart1-sub">V4 모델 총 예측 정확도</div>
+            <canvas id="chart-monthly" height="100"></canvas>
+        </div>
+    </section>
+
+    <!-- CHARTS ROW 2: Group RMSE + Group MAPE -->
+    <section class="chart-row equal">
+        <div class="chart-box">
+            <h3>그룹별 RMSE 비교 (vs Baseline)</h3>
+            <canvas id="chart-group-rmse"></canvas>
+        </div>
+        <div class="chart-box">
+            <h3>그룹별 MAPE (%)</h3>
+            <canvas id="chart-group-mape"></canvas>
+        </div>
+    </section>
+
+    <!-- CHARTS ROW 3: Country detail + Feature importance -->
+    <section class="chart-row">
+        <div class="chart-box">
+            <h3 id="country-chart-title">국가별 예측 정확도 (MAPE %)</h3>
+            <canvas id="chart-country-mape"></canvas>
+        </div>
+        <div class="chart-box">
+            <h3 id="feat-title">주요 피처 중요도</h3>
+            <div class="chart-sub" id="feat-sub">그룹 선택 시 해당 그룹 피처 표시</div>
+            <div id="feat-bars"></div>
+        </div>
+    </section>
+
+    <!-- DATA TABLE -->
+    <section class="table-section">
+        <h3>국가별 상세 결과</h3>
+        <div id="detail-table"></div>
+    </section>
+
+    <footer class="footer">
+        BUS964 Team 5 · V4 모델 (63 피처, 회복률 기반 4그룹, GBM+Ridge+WeightedLag+Stacked) · 데이터 기준: 2024.12
+    </footer>
+</div>
+
+<script>
+// ═══════════════════════ EMBEDDED DATA ═══════════════════════
+
+const RESULTS = [
+{"ym":"2024-07","country":"독일","group":"A1_western_surge","actual":10617,"predicted":11364,"model":"GBM_deep"},
+{"ym":"2024-08","country":"독일","group":"A1_western_surge","actual":14477,"predicted":12476,"model":"GBM_deep"},
+{"ym":"2024-09","country":"독일","group":"A1_western_surge","actual":16795,"predicted":13691,"model":"GBM_deep"},
+{"ym":"2024-10","country":"독일","group":"A1_western_surge","actual":17690,"predicted":16035,"model":"GBM_deep"},
+{"ym":"2024-11","country":"독일","group":"A1_western_surge","actual":10618,"predicted":12499,"model":"GBM_deep"},
+{"ym":"2024-12","country":"독일","group":"A1_western_surge","actual":8172,"predicted":8762,"model":"GBM_deep"},
+{"ym":"2024-07","country":"멕시코","group":"A1_western_surge","actual":3901,"predicted":2940,"model":"GBM_deep"},
+{"ym":"2024-08","country":"멕시코","group":"A1_western_surge","actual":8176,"predicted":3704,"model":"GBM_deep"},
+{"ym":"2024-09","country":"멕시코","group":"A1_western_surge","actual":8333,"predicted":5133,"model":"GBM_deep"},
+{"ym":"2024-10","country":"멕시코","group":"A1_western_surge","actual":10446,"predicted":5670,"model":"GBM_deep"},
+{"ym":"2024-11","country":"멕시코","group":"A1_western_surge","actual":10018,"predicted":4878,"model":"GBM_deep"},
+{"ym":"2024-12","country":"멕시코","group":"A1_western_surge","actual":3482,"predicted":3148,"model":"GBM_deep"},
+{"ym":"2024-07","country":"미국","group":"A1_western_surge","actual":100001,"predicted":100513,"model":"GBM_deep"},
+{"ym":"2024-08","country":"미국","group":"A1_western_surge","actual":116547,"predicted":122853,"model":"GBM_deep"},
+{"ym":"2024-09","country":"미국","group":"A1_western_surge","actual":113820,"predicted":107456,"model":"GBM_deep"},
+{"ym":"2024-10","country":"미국","group":"A1_western_surge","actual":126375,"predicted":121779,"model":"GBM_deep"},
+{"ym":"2024-11","country":"미국","group":"A1_western_surge","actual":113476,"predicted":107498,"model":"GBM_deep"},
+{"ym":"2024-12","country":"미국","group":"A1_western_surge","actual":108430,"predicted":95085,"model":"GBM_deep"},
+{"ym":"2024-07","country":"사우디아라비야","group":"A1_western_surge","actual":1476,"predicted":1969,"model":"GBM_deep"},
+{"ym":"2024-08","country":"사우디아라비야","group":"A1_western_surge","actual":2008,"predicted":2755,"model":"GBM_deep"},
+{"ym":"2024-09","country":"사우디아라비야","group":"A1_western_surge","actual":2036,"predicted":2472,"model":"GBM_deep"},
+{"ym":"2024-10","country":"사우디아라비야","group":"A1_western_surge","actual":2359,"predicted":2643,"model":"GBM_deep"},
+{"ym":"2024-11","country":"사우디아라비야","group":"A1_western_surge","actual":1863,"predicted":2343,"model":"GBM_deep"},
+{"ym":"2024-12","country":"사우디아라비야","group":"A1_western_surge","actual":1915,"predicted":1743,"model":"GBM_deep"},
+{"ym":"2024-07","country":"영국","group":"A1_western_surge","actual":11155,"predicted":12411,"model":"GBM_deep"},
+{"ym":"2024-08","country":"영국","group":"A1_western_surge","actual":12835,"predicted":14696,"model":"GBM_deep"},
+{"ym":"2024-09","country":"영국","group":"A1_western_surge","actual":13832,"predicted":13044,"model":"GBM_deep"},
+{"ym":"2024-10","country":"영국","group":"A1_western_surge","actual":14474,"predicted":14113,"model":"GBM_deep"},
+{"ym":"2024-11","country":"영국","group":"A1_western_surge","actual":11059,"predicted":12067,"model":"GBM_deep"},
+{"ym":"2024-12","country":"영국","group":"A1_western_surge","actual":10443,"predicted":11026,"model":"GBM_deep"},
+{"ym":"2024-07","country":"카자흐스탄","group":"A1_western_surge","actual":4003,"predicted":4502,"model":"GBM_deep"},
+{"ym":"2024-08","country":"카자흐스탄","group":"A1_western_surge","actual":6026,"predicted":5963,"model":"GBM_deep"},
+{"ym":"2024-09","country":"카자흐스탄","group":"A1_western_surge","actual":4826,"predicted":5026,"model":"GBM_deep"},
+{"ym":"2024-10","country":"카자흐스탄","group":"A1_western_surge","actual":5164,"predicted":5265,"model":"GBM_deep"},
+{"ym":"2024-11","country":"카자흐스탄","group":"A1_western_surge","actual":4289,"predicted":4624,"model":"GBM_deep"},
+{"ym":"2024-12","country":"카자흐스탄","group":"A1_western_surge","actual":4111,"predicted":4002,"model":"GBM_deep"},
+{"ym":"2024-07","country":"캐나다","group":"A1_western_surge","actual":17919,"predicted":22502,"model":"GBM_deep"},
+{"ym":"2024-08","country":"캐나다","group":"A1_western_surge","actual":23747,"predicted":30226,"model":"GBM_deep"},
+{"ym":"2024-09","country":"캐나다","group":"A1_western_surge","actual":24523,"predicted":26503,"model":"GBM_deep"},
+{"ym":"2024-10","country":"캐나다","group":"A1_western_surge","actual":24895,"predicted":27085,"model":"GBM_deep"},
+{"ym":"2024-11","country":"캐나다","group":"A1_western_surge","actual":22192,"predicted":23704,"model":"GBM_deep"},
+{"ym":"2024-12","country":"캐나다","group":"A1_western_surge","actual":20862,"predicted":20810,"model":"GBM_deep"},
+{"ym":"2024-07","country":"튀르키예","group":"A1_western_surge","actual":3717,"predicted":3754,"model":"GBM_deep"},
+{"ym":"2024-08","country":"튀르키예","group":"A1_western_surge","actual":4485,"predicted":4690,"model":"GBM_deep"},
+{"ym":"2024-09","country":"튀르키예","group":"A1_western_surge","actual":3926,"predicted":4050,"model":"GBM_deep"},
+{"ym":"2024-10","country":"튀르키예","group":"A1_western_surge","actual":4238,"predicted":4421,"model":"GBM_deep"},
+{"ym":"2024-11","country":"튀르키예","group":"A1_western_surge","actual":3567,"predicted":3805,"model":"GBM_deep"},
+{"ym":"2024-12","country":"튀르키예","group":"A1_western_surge","actual":3384,"predicted":3575,"model":"GBM_deep"},
+{"ym":"2024-07","country":"프랑스","group":"A1_western_surge","actual":13523,"predicted":13038,"model":"GBM_deep"},
+{"ym":"2024-08","country":"프랑스","group":"A1_western_surge","actual":13802,"predicted":13524,"model":"GBM_deep"},
+{"ym":"2024-09","country":"프랑스","group":"A1_western_surge","actual":15826,"predicted":14192,"model":"GBM_deep"},
+{"ym":"2024-10","country":"프랑스","group":"A1_western_surge","actual":17055,"predicted":15534,"model":"GBM_deep"},
+{"ym":"2024-11","country":"프랑스","group":"A1_western_surge","actual":14163,"predicted":12991,"model":"GBM_deep"},
+{"ym":"2024-12","country":"프랑스","group":"A1_western_surge","actual":12936,"predicted":12278,"model":"GBM_deep"},
+{"ym":"2024-07","country":"호주","group":"A1_western_surge","actual":17100,"predicted":19508,"model":"GBM_deep"},
+{"ym":"2024-08","country":"호주","group":"A1_western_surge","actual":21741,"predicted":25429,"model":"GBM_deep"},
+{"ym":"2024-09","country":"호주","group":"A1_western_surge","actual":22459,"predicted":22903,"model":"GBM_deep"},
+{"ym":"2024-10","country":"호주","group":"A1_western_surge","actual":21614,"predicted":23682,"model":"GBM_deep"},
+{"ym":"2024-11","country":"호주","group":"A1_western_surge","actual":22649,"predicted":22429,"model":"GBM_deep"},
+{"ym":"2024-12","country":"호주","group":"A1_western_surge","actual":21370,"predicted":20453,"model":"GBM_deep"},
+{"ym":"2024-07","country":"대만","group":"A2_asia_surge","actual":101236,"predicted":101789,"model":"WeightedLag"},
+{"ym":"2024-08","country":"대만","group":"A2_asia_surge","actual":129627,"predicted":114064,"model":"WeightedLag"},
+{"ym":"2024-09","country":"대만","group":"A2_asia_surge","actual":140651,"predicted":128534,"model":"WeightedLag"},
+{"ym":"2024-10","country":"대만","group":"A2_asia_surge","actual":154652,"predicted":143781,"model":"WeightedLag"},
+{"ym":"2024-11","country":"대만","group":"A2_asia_surge","actual":137027,"predicted":132655,"model":"WeightedLag"},
+{"ym":"2024-12","country":"대만","group":"A2_asia_surge","actual":126027,"predicted":121851,"model":"WeightedLag"},
+{"ym":"2024-07","country":"몽골","group":"A2_asia_surge","actual":11750,"predicted":10951,"model":"WeightedLag"},
+{"ym":"2024-08","country":"몽골","group":"A2_asia_surge","actual":14027,"predicted":12688,"model":"WeightedLag"},
+{"ym":"2024-09","country":"몽골","group":"A2_asia_surge","actual":12539,"predicted":11877,"model":"WeightedLag"},
+{"ym":"2024-10","country":"몽골","group":"A2_asia_surge","actual":14048,"predicted":12744,"model":"WeightedLag"},
+{"ym":"2024-11","country":"몽골","group":"A2_asia_surge","actual":12478,"predicted":11929,"model":"WeightedLag"},
+{"ym":"2024-12","country":"몽골","group":"A2_asia_surge","actual":11151,"predicted":11360,"model":"WeightedLag"},
+{"ym":"2024-07","country":"싱가포르","group":"A2_asia_surge","actual":19709,"predicted":23233,"model":"WeightedLag"},
+{"ym":"2024-08","country":"싱가포르","group":"A2_asia_surge","actual":27011,"predicted":22610,"model":"WeightedLag"},
+{"ym":"2024-09","country":"싱가포르","group":"A2_asia_surge","actual":38498,"predicted":26987,"model":"WeightedLag"},
+{"ym":"2024-10","country":"싱가포르","group":"A2_asia_surge","actual":46760,"predicted":33562,"model":"WeightedLag"},
+{"ym":"2024-11","country":"싱가포르","group":"A2_asia_surge","actual":40574,"predicted":36113,"model":"WeightedLag"},
+{"ym":"2024-12","country":"싱가포르","group":"A2_asia_surge","actual":30788,"predicted":31409,"model":"WeightedLag"},
+{"ym":"2024-07","country":"인도","group":"A2_asia_surge","actual":12204,"predicted":13858,"model":"WeightedLag"},
+{"ym":"2024-08","country":"인도","group":"A2_asia_surge","actual":14556,"predicted":15397,"model":"WeightedLag"},
+{"ym":"2024-09","country":"인도","group":"A2_asia_surge","actual":14513,"predicted":15653,"model":"WeightedLag"},
+{"ym":"2024-10","country":"인도","group":"A2_asia_surge","actual":16478,"predicted":16825,"model":"WeightedLag"},
+{"ym":"2024-11","country":"인도","group":"A2_asia_surge","actual":15453,"predicted":15757,"model":"WeightedLag"},
+{"ym":"2024-12","country":"인도","group":"A2_asia_surge","actual":14125,"predicted":14937,"model":"WeightedLag"},
+{"ym":"2024-07","country":"인도네시아","group":"A2_asia_surge","actual":24022,"predicted":23688,"model":"WeightedLag"},
+{"ym":"2024-08","country":"인도네시아","group":"A2_asia_surge","actual":31556,"predicted":27073,"model":"WeightedLag"},
+{"ym":"2024-09","country":"인도네시아","group":"A2_asia_surge","actual":27882,"predicted":26430,"model":"WeightedLag"},
+{"ym":"2024-10","country":"인도네시아","group":"A2_asia_surge","actual":33135,"predicted":29625,"model":"WeightedLag"},
+{"ym":"2024-11","country":"인도네시아","group":"A2_asia_surge","actual":28703,"predicted":28694,"model":"WeightedLag"},
+{"ym":"2024-12","country":"인도네시아","group":"A2_asia_surge","actual":26242,"predicted":28648,"model":"WeightedLag"},
+{"ym":"2024-07","country":"필리핀","group":"A2_asia_surge","actual":33558,"predicted":31050,"model":"WeightedLag"},
+{"ym":"2024-08","country":"필리핀","group":"A2_asia_surge","actual":47456,"predicted":40284,"model":"WeightedLag"},
+{"ym":"2024-09","country":"필리핀","group":"A2_asia_surge","actual":43785,"predicted":41223,"model":"WeightedLag"},
+{"ym":"2024-10","country":"필리핀","group":"A2_asia_surge","actual":53671,"predicted":47506,"model":"WeightedLag"},
+{"ym":"2024-11","country":"필리핀","group":"A2_asia_surge","actual":48373,"predicted":44655,"model":"WeightedLag"},
+{"ym":"2024-12","country":"필리핀","group":"A2_asia_surge","actual":42039,"predicted":41870,"model":"WeightedLag"},
+{"ym":"2024-07","country":"말레이시아","group":"B_recovering","actual":21082,"predicted":22655,"model":"GBM_deep"},
+{"ym":"2024-08","country":"말레이시아","group":"B_recovering","actual":28174,"predicted":28203,"model":"GBM_deep"},
+{"ym":"2024-09","country":"말레이시아","group":"B_recovering","actual":23996,"predicted":24513,"model":"GBM_deep"},
+{"ym":"2024-10","country":"말레이시아","group":"B_recovering","actual":29697,"predicted":27864,"model":"GBM_deep"},
+{"ym":"2024-11","country":"말레이시아","group":"B_recovering","actual":26012,"predicted":25175,"model":"GBM_deep"},
+{"ym":"2024-12","country":"말레이시아","group":"B_recovering","actual":24641,"predicted":23448,"model":"GBM_deep"},
+{"ym":"2024-07","country":"베트남","group":"B_recovering","actual":34606,"predicted":44267,"model":"GBM_deep"},
+{"ym":"2024-08","country":"베트남","group":"B_recovering","actual":46016,"predicted":54289,"model":"GBM_deep"},
+{"ym":"2024-09","country":"베트남","group":"B_recovering","actual":44527,"predicted":49822,"model":"GBM_deep"},
+{"ym":"2024-10","country":"베트남","group":"B_recovering","actual":50621,"predicted":55379,"model":"GBM_deep"},
+{"ym":"2024-11","country":"베트남","group":"B_recovering","actual":44614,"predicted":48901,"model":"GBM_deep"},
+{"ym":"2024-12","country":"베트남","group":"B_recovering","actual":41805,"predicted":45235,"model":"GBM_deep"},
+{"ym":"2024-07","country":"일본","group":"B_recovering","actual":259083,"predicted":228786,"model":"GBM_deep"},
+{"ym":"2024-08","country":"일본","group":"B_recovering","actual":292862,"predicted":271256,"model":"GBM_deep"},
+{"ym":"2024-09","country":"일본","group":"B_recovering","actual":293451,"predicted":280513,"model":"GBM_deep"},
+{"ym":"2024-10","country":"일본","group":"B_recovering","actual":325399,"predicted":274692,"model":"GBM_deep"},
+{"ym":"2024-11","country":"일본","group":"B_recovering","actual":319744,"predicted":292188,"model":"GBM_deep"},
+{"ym":"2024-12","country":"일본","group":"B_recovering","actual":301541,"predicted":280247,"model":"GBM_deep"},
+{"ym":"2024-07","country":"중국","group":"B_recovering","actual":375972,"predicted":369424,"model":"GBM_deep"},
+{"ym":"2024-08","country":"중국","group":"B_recovering","actual":355419,"predicted":371546,"model":"GBM_deep"},
+{"ym":"2024-09","country":"중국","group":"B_recovering","actual":381527,"predicted":416082,"model":"GBM_deep"},
+{"ym":"2024-10","country":"중국","group":"B_recovering","actual":459419,"predicted":445832,"model":"GBM_deep"},
+{"ym":"2024-11","country":"중국","group":"B_recovering","actual":405755,"predicted":424023,"model":"GBM_deep"},
+{"ym":"2024-12","country":"중국","group":"B_recovering","actual":406202,"predicted":394551,"model":"GBM_deep"},
+{"ym":"2024-07","country":"홍콩","group":"B_recovering","actual":43714,"predicted":50262,"model":"GBM_deep"},
+{"ym":"2024-08","country":"홍콩","group":"B_recovering","actual":57610,"predicted":58993,"model":"GBM_deep"},
+{"ym":"2024-09","country":"홍콩","group":"B_recovering","actual":49839,"predicted":56234,"model":"GBM_deep"},
+{"ym":"2024-10","country":"홍콩","group":"B_recovering","actual":61879,"predicted":62165,"model":"GBM_deep"},
+{"ym":"2024-11","country":"홍콩","group":"B_recovering","actual":55367,"predicted":54932,"model":"GBM_deep"},
+{"ym":"2024-12","country":"홍콩","group":"B_recovering","actual":49668,"predicted":51503,"model":"GBM_deep"},
+{"ym":"2024-07","country":"러시아","group":"C_underperform","actual":14419,"predicted":15689,"model":"Stacked"},
+{"ym":"2024-08","country":"러시아","group":"C_underperform","actual":17993,"predicted":20255,"model":"Stacked"},
+{"ym":"2024-09","country":"러시아","group":"C_underperform","actual":17936,"predicted":19483,"model":"Stacked"},
+{"ym":"2024-10","country":"러시아","group":"C_underperform","actual":20893,"predicted":19963,"model":"Stacked"},
+{"ym":"2024-11","country":"러시아","group":"C_underperform","actual":17755,"predicted":17963,"model":"Stacked"},
+{"ym":"2024-12","country":"러시아","group":"C_underperform","actual":17070,"predicted":17209,"model":"Stacked"},
+{"ym":"2024-07","country":"아랍에미리트","group":"C_underperform","actual":678,"predicted":649,"model":"Stacked"},
+{"ym":"2024-08","country":"아랍에미리트","group":"C_underperform","actual":793,"predicted":869,"model":"Stacked"},
+{"ym":"2024-09","country":"아랍에미리트","group":"C_underperform","actual":821,"predicted":833,"model":"Stacked"},
+{"ym":"2024-10","country":"아랍에미리트","group":"C_underperform","actual":1011,"predicted":804,"model":"Stacked"},
+{"ym":"2024-11","country":"아랍에미리트","group":"C_underperform","actual":839,"predicted":793,"model":"Stacked"},
+{"ym":"2024-12","country":"아랍에미리트","group":"C_underperform","actual":783,"predicted":737,"model":"Stacked"},
+{"ym":"2024-07","country":"태국","group":"C_underperform","actual":25437,"predicted":23802,"model":"Stacked"},
+{"ym":"2024-08","country":"태국","group":"C_underperform","actual":30032,"predicted":30989,"model":"Stacked"},
+{"ym":"2024-09","country":"태국","group":"C_underperform","actual":25025,"predicted":28373,"model":"Stacked"},
+{"ym":"2024-10","country":"태국","group":"C_underperform","actual":27690,"predicted":29605,"model":"Stacked"},
+{"ym":"2024-11","country":"태국","group":"C_underperform","actual":23697,"predicted":27047,"model":"Stacked"},
+{"ym":"2024-12","country":"태국","group":"C_underperform","actual":23647,"predicted":25966,"model":"Stacked"}
+];
+
+// Version history data
+const VERSIONS = [
+    { name: "V1", rmse: 134107, mape: 15.0, desc: "전체 총합 예측\n36~78행, sklearn RF/GBM", improvement: null },
+    { name: "V2", rmse: 113300, mape: 8.0, desc: "국가별 5그룹 (지역기반)\nnumpy GBM(depth=1)", improvement: -15.5 },
+    { name: "V3", rmse: 63774, mape: 3.9, desc: "4그룹 (회복률 기반)\nGBM(depth=3)+Stacked", improvement: -43.7 },
+    { name: "V4", rmse: 52793, mape: 3.1, desc: "63 피처 확장\n날씨+이벤트+만족도+이미지", improvement: -17.2 }
+];
+
+// Group metadata
+const GROUP_META = {
+    A1_western_surge: {
+        label: "A1 서양권 급증", color: "#3b82f6", badge: "badge-a1",
+        desc: "≥100% 회복 (서양)", countries: 10, model: "GBM_deep",
+        baseline_rmse: 8353, v4_rmse: 4600,
+        features: [
+            {name:"visitor_lag_1", imp:0.28}, {name:"visitor_ma_3", imp:0.15},
+            {name:"culture_affinity", imp:0.11}, {name:"month_sin", imp:0.09},
+            {name:"exchange_rate_change", imp:0.08}, {name:"travel_interest_lag_1", imp:0.07},
+            {name:"is_peak_season", imp:0.05}, {name:"event_intensity", imp:0.04},
+            {name:"weather_comfort", imp:0.03}, {name:"visitor_yoy_growth", imp:0.03}
+        ]
+    },
+    A2_asia_surge: {
+        label: "A2 아시아 급증", color: "#8b5cf6", badge: "badge-a2",
+        desc: "≥100% 회복 (아시아)", countries: 6, model: "WeightedLag",
+        baseline_rmse: 8445, v4_rmse: 9827,
+        features: [
+            {name:"visitor_lag_1", imp:0.35}, {name:"visitor_lag_2", imp:0.18},
+            {name:"visitor_ma_6", imp:0.12}, {name:"travel_interest_lag_1", imp:0.08},
+            {name:"exchange_rate_lag_1", imp:0.06}, {name:"month_cos", imp:0.05},
+            {name:"visitor_ma_12", imp:0.04}, {name:"oil_price_lag_1", imp:0.03},
+            {name:"global_interest_lag_1", imp:0.03}, {name:"is_summer", imp:0.02}
+        ]
+    },
+    B_recovering: {
+        label: "B 회복중", color: "#f59e0b", badge: "badge-b",
+        desc: "70-99% 회복", countries: 5, model: "GBM_deep",
+        baseline_rmse: 36364, v4_rmse: 26832,
+        features: [
+            {name:"visitor_lag_1", imp:0.22}, {name:"visitor_ma_3", imp:0.14},
+            {name:"recovery_ratio", imp:0.12}, {name:"hallyu_index", imp:0.09},
+            {name:"exchange_rate_change", imp:0.08}, {name:"spend_x_fx", imp:0.06},
+            {name:"month_sin", imp:0.05}, {name:"culture_affinity", imp:0.05},
+            {name:"event_weighted", imp:0.04}, {name:"revisit_rate_lag", imp:0.03}
+        ]
+    },
+    C_underperform: {
+        label: "C 미회복", color: "#ef4444", badge: "badge-c",
+        desc: "<70% 회복", countries: 3, model: "Stacked",
+        baseline_rmse: 6179, v4_rmse: 3455,
+        features: [
+            {name:"visitor_lag_1", imp:0.30}, {name:"visitor_ma_6", imp:0.13},
+            {name:"month_sin", imp:0.10}, {name:"hallyu_index", imp:0.08},
+            {name:"covid_period", imp:0.07}, {name:"exchange_rate_lag_1", imp:0.06},
+            {name:"recovery_ratio", imp:0.05}, {name:"oil_price_ma_3", imp:0.04},
+            {name:"culture_affinity", imp:0.03}, {name:"business_ratio", imp:0.03}
+        ]
+    }
+};
+
+const COLORS = ['#3b82f6','#8b5cf6','#f59e0b','#ef4444','#10b981','#6366f1','#ec4899','#14b8a6'];
+
+// ═══════════════════════ DASHBOARD CLASS ═══════════════════════
+
+class Dashboard {
+    constructor() {
+        this.data = RESULTS;
+        this.filtered = RESULTS;
+        this.charts = {};
+        this.selectedGroup = 'all';
+        this.init();
+    }
+
+    init() {
+        this.populateCountryFilter();
+        this.renderVersionBanner();
+        this.renderKPIs();
+        this.renderGroupCards();
+        this.renderMonthlyChart();
+        this.renderGroupCharts();
+        this.renderCountryChart();
+        this.renderFeatureImportance('all');
+        this.renderTable();
+    }
+
+    populateCountryFilter() {
+        const sel = document.getElementById('filter-country');
+        const countries = [...new Set(this.data.map(d => d.country))].sort();
+        countries.forEach(c => {
+            const opt = document.createElement('option');
+            opt.value = c; opt.textContent = c;
+            sel.appendChild(opt);
+        });
+    }
+
+    applyFilters() {
+        const grp = document.getElementById('filter-group').value;
+        const ctry = document.getElementById('filter-country').value;
+        this.selectedGroup = grp;
+
+        this.filtered = this.data.filter(r => {
+            if (grp !== 'all' && r.group !== grp) return false;
+            if (ctry !== 'all' && r.country !== ctry) return false;
+            return true;
+        });
+
+        // Update country filter options based on group
+        if (grp !== 'all') {
+            const countrySel = document.getElementById('filter-country');
+            const currentVal = countrySel.value;
+            const groupCountries = [...new Set(this.data.filter(r => r.group === grp).map(r => r.country))].sort();
+            countrySel.innerHTML = '<option value="all">전체</option>';
+            groupCountries.forEach(c => {
+                const opt = document.createElement('option');
+                opt.value = c; opt.textContent = c;
+                sel.appendChild(opt);
+            });
+            if (groupCountries.includes(currentVal)) countrySel.value = currentVal;
+        } else {
+            const countrySel = document.getElementById('filter-country');
+            countrySel.innerHTML = '<option value="all">전체</option>';
+            [...new Set(this.data.map(d => d.country))].sort().forEach(c => {
+                const opt = document.createElement('option');
+                opt.value = c; opt.textContent = c;
+                countrySel.appendChild(opt);
+            });
+        }
+
+        this.renderKPIs();
+        this.updateMonthlyChart();
+        this.renderCountryChart();
+        this.renderFeatureImportance(grp);
+        this.renderTable();
+    }
+
+    // ── Version Banner ──
+    renderVersionBanner() {
+        const el = document.getElementById('version-banner');
+        el.innerHTML = VERSIONS.map((v, i) => `
+            <div class="version-card ${v.name === 'V4' ? 'active' : ''}">
+                <div class="ver-label">${v.name}</div>
+                <div class="ver-rmse">RMSE<span>${this.fmtNum(v.rmse)}</span></div>
+                <div class="ver-mape">MAPE: ${v.mape}%</div>
+                <div class="ver-improvement ${v.improvement ? 'good' : 'base'}">
+                    ${v.improvement ? v.improvement.toFixed(1) + '% vs 이전' : 'Baseline'}
+                </div>
+                <div style="font-size:11px; color:var(--text-secondary); margin-top:8px; white-space:pre-line">${v.desc}</div>
+            </div>
+        `).join('');
+    }
+
+    // ── KPIs ──
+    renderKPIs() {
+        const d = this.filtered;
+        const totalActual = d.reduce((s,r) => s+r.actual, 0);
+        const totalPred = d.reduce((s,r) => s+r.predicted, 0);
+        const rmse = Math.sqrt(d.reduce((s,r) => s + (r.actual-r.predicted)**2, 0) / d.length);
+        const mape = d.reduce((s,r) => s + Math.abs((r.actual-r.predicted)/r.actual), 0) / d.length * 100;
+        const countries = new Set(d.map(r => r.country)).size;
+
+        const totalError = Math.abs(totalActual - totalPred) / totalActual * 100;
+
+        document.getElementById('kpi-row').innerHTML = `
+            <div class="kpi-card">
+                <div class="kpi-label">테스트 기간 실제 방문객</div>
+                <div class="kpi-value">${this.fmtNum(totalActual)}</div>
+                <div class="kpi-sub">6개월 합산</div>
+            </div>
+            <div class="kpi-card">
+                <div class="kpi-label">V4 예측 방문객</div>
+                <div class="kpi-value">${this.fmtNum(Math.round(totalPred))}</div>
+                <div class="kpi-sub ${totalError < 5 ? 'positive' : 'negative'}">오차 ${totalError.toFixed(1)}%</div>
+            </div>
+            <div class="kpi-card">
+                <div class="kpi-label">RMSE</div>
+                <div class="kpi-value">${this.fmtNum(Math.round(rmse))}</div>
+                <div class="kpi-sub positive">V3 대비 -17.2%</div>
+            </div>
+            <div class="kpi-card">
+                <div class="kpi-label">MAPE</div>
+                <div class="kpi-value">${mape.toFixed(1)}%</div>
+                <div class="kpi-sub">국가별 평균 오차율</div>
+            </div>
+            <div class="kpi-card">
+                <div class="kpi-label">대상 국가</div>
+                <div class="kpi-value">${countries}개국</div>
+                <div class="kpi-sub">4그룹 분류</div>
+            </div>
+        `;
+    }
+
+    // ── Group Cards ──
+    renderGroupCards() {
+        const el = document.getElementById('group-grid');
+        el.innerHTML = Object.entries(GROUP_META).map(([key, g]) => {
+            const gd = this.data.filter(r => r.group === key);
+            const rmse = Math.sqrt(gd.reduce((s,r) => s + (r.actual-r.predicted)**2, 0) / gd.length);
+            const mape = gd.reduce((s,r) => s + Math.abs((r.actual-r.predicted)/r.actual), 0) / gd.length * 100;
+            const vsbl = ((g.v4_rmse - g.baseline_rmse) / g.baseline_rmse * 100);
+            const win = vsbl < 0;
+            return `
+            <div class="group-card" style="border-left-color:${g.color}" onclick="dashboard.selectGroup('${key}')">
+                <div class="g-name" style="color:${g.color}">${g.label}</div>
+                <div class="g-countries">${g.countries}개국 · ${g.desc}</div>
+                <div class="g-metrics">
+                    <div class="g-metric-box"><div class="g-metric-label">RMSE</div><div class="g-metric-val">${this.fmtNum(Math.round(rmse))}</div></div>
+                    <div class="g-metric-box"><div class="g-metric-label">MAPE</div><div class="g-metric-val">${mape.toFixed(1)}%</div></div>
+                </div>
+                <div class="g-model">★ ${g.model}</div>
+                <div class="g-vs-bl ${win ? 'win' : 'lose'}">vs Baseline: ${vsbl > 0 ? '+' : ''}${vsbl.toFixed(1)}%</div>
+            </div>`;
+        }).join('');
+    }
+
+    selectGroup(key) {
+        document.getElementById('filter-group').value = key;
+        this.applyFilters();
+    }
+
+    // ── Monthly Chart ──
+    renderMonthlyChart() {
+        const months = [...new Set(this.data.map(r => r.ym))].sort();
+        const actual = months.map(m => this.data.filter(r => r.ym === m).reduce((s,r) => s+r.actual, 0));
+        const pred = months.map(m => this.data.filter(r => r.ym === m).reduce((s,r) => s+r.predicted, 0));
+
+        const ctx = document.getElementById('chart-monthly').getContext('2d');
+        this.charts.monthly = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: months.map(m => m.replace('2024-','')+' 월'),
+                datasets: [
+                    { label: '실제 방문객', data: actual, backgroundColor: '#3b82f620', borderColor: '#3b82f6', borderWidth: 2, type: 'bar', borderRadius: 6, order: 2 },
+                    { label: 'V4 예측', data: pred, backgroundColor: '#ef444420', borderColor: '#ef4444', borderWidth: 2.5, type: 'line', tension: 0.3, pointRadius: 5, pointHoverRadius: 8, order: 1 }
+                ]
+            },
+            options: {
+                responsive: true, maintainAspectRatio: false,
+                interaction: { mode: 'index', intersect: false },
+                plugins: {
+                    legend: { position: 'top', labels: { usePointStyle: true, padding: 20 } },
+                    tooltip: { callbacks: { label: ctx => `${ctx.dataset.label}: ${this.fmtNum(Math.round(ctx.parsed.y))}명` } }
+                },
+                scales: {
+                    x: { grid: { display: false } },
+                    y: { beginAtZero: false, ticks: { callback: v => (v/10000).toFixed(0) + '만' }, grid: { color: '#f1f5f9' } }
+                }
+            }
+        });
+    }
+
+    updateMonthlyChart() {
+        const months = [...new Set(this.filtered.map(r => r.ym))].sort();
+        const actual = months.map(m => this.filtered.filter(r => r.ym === m).reduce((s,r) => s+r.actual, 0));
+        const pred = months.map(m => this.filtered.filter(r => r.ym === m).reduce((s,r) => s+r.predicted, 0));
+        this.charts.monthly.data.labels = months.map(m => m.replace('2024-','')+' 월');
+        this.charts.monthly.data.datasets[0].data = actual;
+        this.charts.monthly.data.datasets[1].data = pred;
+        this.charts.monthly.update('none');
+
+        const sub = document.getElementById('chart1-sub');
+        const grp = document.getElementById('filter-group').value;
+        sub.textContent = grp === 'all' ? 'V4 모델 총 예측 정확도' : GROUP_META[grp]?.label + ' 예측 정확도';
+    }
+
+    // ── Group RMSE & MAPE Charts ──
+    renderGroupCharts() {
+        const groups = Object.keys(GROUP_META);
+        const labels = groups.map(g => GROUP_META[g].label.replace('A1 ','A1\n').replace('A2 ','A2\n').replace('B ','B\n').replace('C ','C\n'));
+        const colors = groups.map(g => GROUP_META[g].color);
+
+        // RMSE
+        const v4rmse = groups.map(g => GROUP_META[g].v4_rmse);
+        const blrmse = groups.map(g => GROUP_META[g].baseline_rmse);
+        const ctx1 = document.getElementById('chart-group-rmse').getContext('2d');
+        this.charts.groupRmse = new Chart(ctx1, {
+            type: 'bar',
+            data: {
+                labels: groups.map(g => GROUP_META[g].label),
+                datasets: [
+                    { label: 'V4', data: v4rmse, backgroundColor: colors.map(c => c + 'CC'), borderColor: colors, borderWidth: 1, borderRadius: 4 },
+                    { label: 'Baseline', data: blrmse, backgroundColor: '#94a3b840', borderColor: '#94a3b8', borderWidth: 1, borderRadius: 4 }
+                ]
+            },
+            options: {
+                responsive: true, maintainAspectRatio: false,
+                plugins: {
+                    legend: { position: 'top', labels: { usePointStyle: true, padding: 15 } },
+                    tooltip: { callbacks: { label: ctx => `${ctx.dataset.label}: ${this.fmtNum(Math.round(ctx.parsed.y))}` } }
+                },
+                scales: {
+                    x: { grid: { display: false } },
+                    y: { beginAtZero: true, ticks: { callback: v => this.fmtNum(v) }, grid: { color: '#f1f5f9' } }
+                }
+            }
+        });
+
+        // MAPE
+        const mapes = groups.map(g => {
+            const gd = this.data.filter(r => r.group === g);
+            return gd.reduce((s,r) => s + Math.abs((r.actual-r.predicted)/r.actual), 0) / gd.length * 100;
+        });
+        const ctx2 = document.getElementById('chart-group-mape').getContext('2d');
+        this.charts.groupMape = new Chart(ctx2, {
+            type: 'bar',
+            data: {
+                labels: groups.map(g => GROUP_META[g].label),
+                datasets: [{
+                    label: 'MAPE %',
+                    data: mapes,
+                    backgroundColor: colors.map(c => c + '99'),
+                    borderColor: colors, borderWidth: 1, borderRadius: 4
+                }]
+            },
+            options: {
+                responsive: true, maintainAspectRatio: false,
+                plugins: { legend: { display: false }, tooltip: { callbacks: { label: ctx => `MAPE: ${ctx.parsed.y.toFixed(1)}%` } } },
+                scales: {
+                    x: { grid: { display: false } },
+                    y: { beginAtZero: true, ticks: { callback: v => v + '%' }, grid: { color: '#f1f5f9' } }
+                }
+            }
+        });
+    }
+
+    // ── Country MAPE Chart ──
+    renderCountryChart() {
+        const countries = [...new Set(this.filtered.map(r => r.country))];
+        const countryData = countries.map(c => {
+            const cd = this.filtered.filter(r => r.country === c);
+            const mape = cd.reduce((s,r) => s + Math.abs((r.actual-r.predicted)/r.actual), 0) / cd.length * 100;
+            const grp = cd[0].group;
+            return { country: c, mape, group: grp };
+        }).sort((a,b) => a.mape - b.mape);
+
+        if (this.charts.countryMape) this.charts.countryMape.destroy();
+
+        const ctx = document.getElementById('chart-country-mape').getContext('2d');
+        this.charts.countryMape = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: countryData.map(d => d.country),
+                datasets: [{
+                    label: 'MAPE %',
+                    data: countryData.map(d => d.mape),
+                    backgroundColor: countryData.map(d => GROUP_META[d.group]?.color + '99' || '#64748b99'),
+                    borderColor: countryData.map(d => GROUP_META[d.group]?.color || '#64748b'),
+                    borderWidth: 1, borderRadius: 3
+                }]
+            },
+            options: {
+                indexAxis: 'y', responsive: true, maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false },
+                    tooltip: { callbacks: { label: ctx => `MAPE: ${ctx.parsed.x.toFixed(1)}%` } }
+                },
+                scales: {
+                    x: { beginAtZero: true, ticks: { callback: v => v + '%' }, grid: { color: '#f1f5f9' } },
+                    y: { grid: { display: false } }
+                }
+            }
+        });
+        document.getElementById('chart-country-mape').parentElement.style.minHeight = Math.max(320, countryData.length * 28) + 'px';
+    }
+
+    // ── Feature Importance ──
+    renderFeatureImportance(group) {
+        const el = document.getElementById('feat-bars');
+        const title = document.getElementById('feat-title');
+        const sub = document.getElementById('feat-sub');
+
+        let features;
+        if (group === 'all') {
+            // Average across all groups
+            const allFeats = {};
+            Object.values(GROUP_META).forEach(g => {
+                g.features.forEach(f => {
+                    if (!allFeats[f.name]) allFeats[f.name] = { total: 0, count: 0 };
+                    allFeats[f.name].total += f.imp;
+                    allFeats[f.name].count += 1;
+                });
+            });
+            features = Object.entries(allFeats)
+                .map(([name, v]) => ({ name, imp: v.total / v.count }))
+                .sort((a,b) => b.imp - a.imp)
+                .slice(0, 10);
+            title.textContent = '주요 피처 중요도 (전체 평균)';
+            sub.textContent = '4개 그룹 피처 중요도의 평균';
+        } else {
+            features = GROUP_META[group].features;
+            title.textContent = `피처 중요도 · ${GROUP_META[group].label}`;
+            sub.textContent = `★ ${GROUP_META[group].model} 기준`;
+        }
+
+        const maxImp = Math.max(...features.map(f => f.imp));
+        const groupColor = group !== 'all' ? GROUP_META[group].color : '#3b82f6';
+
+        // Highlight new V4 features
+        const v4NewFeatures = new Set(['culture_affinity','weather_comfort','event_intensity','event_weighted','spend_x_fx','revisit_rate_lag','business_ratio','temp_anomaly']);
+
+        el.innerHTML = features.map(f => {
+            const pct = (f.imp / maxImp * 100).toFixed(0);
+            const isNew = v4NewFeatures.has(f.name);
+            return `
+                <div class="feat-bar-container">
+                    <div class="feat-name">${f.name}${isNew ? ' <span style="color:var(--accent);font-weight:700">NEW</span>' : ''}</div>
+                    <div class="feat-bar-bg"><div class="feat-bar" style="width:${pct}%; background:${groupColor}${isNew ? '' : '99'}"></div></div>
+                    <div class="feat-val">${(f.imp*100).toFixed(0)}%</div>
+                </div>`;
+        }).join('');
+    }
+
+    // ── Data Table ──
+    renderTable() {
+        const countries = [...new Set(this.filtered.map(r => r.country))];
+        const rows = countries.map(c => {
+            const cd = this.filtered.filter(r => r.country === c);
+            const grp = cd[0].group;
+            const model = cd[0].model;
+            const totalA = cd.reduce((s,r) => s+r.actual, 0);
+            const totalP = cd.reduce((s,r) => s+r.predicted, 0);
+            const rmse = Math.sqrt(cd.reduce((s,r) => s + (r.actual-r.predicted)**2, 0) / cd.length);
+            const mape = cd.reduce((s,r) => s + Math.abs((r.actual-r.predicted)/r.actual), 0) / cd.length * 100;
+            const errorPct = Math.abs(totalA - totalP) / totalA * 100;
+            return { country: c, group: grp, model, totalA, totalP, rmse, mape, errorPct };
+        });
+
+        let sortCol = 'mape', sortDir = 'asc';
+        const sorted = [...rows].sort((a,b) => a[sortCol] - b[sortCol]);
+
+        const badgeClass = g => g.startsWith('A1') ? 'badge-a1' : g.startsWith('A2') ? 'badge-a2' : g.startsWith('B') ? 'badge-b' : 'badge-c';
+        const groupShort = g => g.startsWith('A1') ? 'A1' : g.startsWith('A2') ? 'A2' : g.startsWith('B') ? 'B' : 'C';
+
+        const container = document.getElementById('detail-table');
+
+        const render = (data) => {
+            container.innerHTML = `
+            <table class="data-table">
+                <thead><tr>
+                    <th onclick="sortTbl('country')">국가</th>
+                    <th onclick="sortTbl('group')">그룹</th>
+                    <th onclick="sortTbl('model')">모델</th>
+                    <th onclick="sortTbl('totalA')" class="num">실제 (6개월)</th>
+                    <th onclick="sortTbl('totalP')" class="num">예측 (6개월)</th>
+                    <th onclick="sortTbl('errorPct')" class="num">총량 오차 %</th>
+                    <th onclick="sortTbl('rmse')" class="num">RMSE</th>
+                    <th onclick="sortTbl('mape')" class="num">MAPE %</th>
+                </tr></thead>
+                <tbody>${data.map(r => `
+                    <tr>
+                        <td><strong>${r.country}</strong></td>
+                        <td><span class="badge ${badgeClass(r.group)}">${groupShort(r.group)}</span></td>
+                        <td>${r.model}</td>
+                        <td class="num">${this.fmtNum(r.totalA)}</td>
+                        <td class="num">${this.fmtNum(Math.round(r.totalP))}</td>
+                        <td class="num" style="color:${r.errorPct < 5 ? 'var(--positive)' : r.errorPct < 15 ? 'var(--warning)' : 'var(--negative)'}">${r.errorPct.toFixed(1)}%</td>
+                        <td class="num">${this.fmtNum(Math.round(r.rmse))}</td>
+                        <td class="num" style="color:${r.mape < 10 ? 'var(--positive)' : r.mape < 20 ? 'var(--warning)' : 'var(--negative)'}">${r.mape.toFixed(1)}%</td>
+                    </tr>`).join('')}
+                </tbody>
+            </table>`;
+        };
+
+        window.sortTbl = (col) => {
+            if (sortCol === col) sortDir = sortDir === 'asc' ? 'desc' : 'asc';
+            else { sortCol = col; sortDir = 'asc'; }
+            const s = [...rows].sort((a,b) => {
+                const av = a[col], bv = b[col];
+                const cmp = typeof av === 'string' ? av.localeCompare(bv) : av - bv;
+                return sortDir === 'asc' ? cmp : -cmp;
+            });
+            render(s);
+        };
+
+        render(sorted);
+    }
+
+    fmtNum(n) {
+        return n.toLocaleString('ko-KR');
+    }
+}
+
+const dashboard = new Dashboard();
+</script>
+</body>
+</html>
