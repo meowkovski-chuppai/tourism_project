@@ -9,16 +9,18 @@ V7~V10 앙상블 메타러닝 파이프라인을 통해 2025년 월별 국가별
 
 ## Model Version Mapping
 
-This project was developed iteratively through multiple versions (V7–V10).
+## 모델 버전 매핑 (Model Version Mapping)
 
-For presentation clarity, these versions are abstracted into Model 1–4.
+본 프로젝트는 V7부터 V10까지 여러 단계의 반복적인 개선 과정을 통해 개발되었습니다.
 
-* Model 1 ≈ V7 (Baseline ensemble with same feature space)
-* Model 2 ≈ V8 (Information diversity-based ensemble)
-* Model 3 ≈ V9 (OOF validation to prevent data leakage)
-* Model 4 ≈ V10 (Final hybrid ensemble: blending, constrained meta, Bayesian update)
+발표의 이해를 돕기 위해, 이러한 구현 버전들은 Model 1부터 Model 4까지의 개념적 모델로 재구성하여 설명합니다.
 
-This mapping ensures consistency between implementation (code) and presentation (slides).
+* Model 1 ≈ V7 (동일한 피처 공간을 사용하는 기본 앙상블 모델)
+* Model 2 ≈ V8 (정보 다양성 기반 앙상블 모델)
+* Model 3 ≈ V9 (데이터 누출 방지를 위한 OOF 검증 적용 모델)
+* Model 4 ≈ V10 (블렌딩, 제약 기반 메타, 베이지안 업데이트를 결합한 최종 하이브리드 앙상블 모델)
+
+본 매핑은 코드 구현 단계와 발표용 모델 구조 간의 일관성을 유지하기 위해 제시되었습니다.
 
 ---
 
