@@ -46,6 +46,38 @@ tourism_project/
 2. **Constrained Meta**: V9 OOF 가중치 범위 내에서 2024 데이터로 최적화
 3. **Bayesian Update**: V9 OOF = Prior, V8 2024 성능 = Likelihood → Posterior
 
+### V10 Performance Breakdown (2025)
+
+MAPE 계산 기준: 25개국 × 12개월 country-month level
+
+| Metric | Value |
+|--------|-------|
+| 단순 평균 MAPE | 16.8% |
+| 방문객 가중 평균 MAPE | 13.5% |
+| Grid Optimized MAPE (S1:60/S2:35/S3:5) | 15.3% |
+
+**그룹별 성능:**
+
+| Group | MAPE | 2025 Visitors | 비고 |
+|-------|------|---------------|------|
+| A2 Asia Surge | 11.0% | 3,637,964 | 가장 정확 |
+| ETC | 11.3% | 1,308,834 | 합산 효과로 안정 |
+| A1 Western Surge | 16.8% | 2,792,560 | 중간 |
+| B Recovering | 17.3% | 10,629,507 | 최대 비중 (일본·중국 포함) |
+| C Underperform | 29.7% | 567,697 | 소규모·불규칙 패턴 |
+
+**국가별 Best / Worst:**
+
+| Best 5 | MAPE | Worst 5 | MAPE |
+|--------|------|---------|------|
+| 인도네시아 | 7.0% | 아랍에미리트 | 40.2% |
+| 몽골 | 9.3% | 말레이시아 | 29.5% |
+| 카자흐스탄 | 9.7% | 멕시코 | 27.7% |
+| 필리핀 | 10.0% | 태국 | 26.0% |
+| 인도 | 10.8% | 러시아 | 23.0% |
+
+> 모든 수치는 `outputs/v10_pred.csv`에서 직접 산출. Constrained Meta (MAPE-optimized weights) 기준.
+
 ## Quick Start
 
 ```bash
