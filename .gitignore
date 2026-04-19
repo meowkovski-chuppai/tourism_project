@@ -76,5 +76,8 @@ dmypy.json
 # *.csv
 # *.xlsx
 
-# Outputs (generated files)
-outputs/
+# Outputs (keep tracked — contains model results)
+# outputs/
+
+# macOS resource forks
+__MACOSX/
