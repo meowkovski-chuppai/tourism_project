@@ -2,7 +2,7 @@
 
 **BUS964 Team 5** — Korea University Graduate School of Business
 
-25개국 방한 외래관광객 수요 예측 시스템.  
+24개국 + ETC 국가 방한 외래관광객 수요 예측 시스템.  
 V7~V9 앙상블 메타러닝 파이프라인을 통해 2025년 월별 국가별 방문객 수를 예측하고, 2026년 분기별 갱신 예측을 수행합니다.
 
 ---
@@ -12,14 +12,14 @@ V7~V9 앙상블 메타러닝 파이프라인을 통해 2025년 월별 국가별 
 ```
 tourism_project/
 ├── src/
-│   ├── loader.py          # 25개국 데이터 로딩 + ETC 국가 산출
+│   ├── loader.py          # 24개국 데이터 로딩 + ETC 국가 산출
 │   ├── engineer.py         # 피처 엔지니어링 (Lag, MA, YoY, Tier2)
 │   ├── models.py           # ML 모델 (GBM, Ridge, WeightedLag, Ensemble)
 │   ├── run_v7.py           # V7: 3-Model (A/B/C) 독립 학습
 │   ├── run_v8.py           # V8: Information Diversity Stacking
 │   └── run_v9.py           # V9 Final: Bootstrap×10 + BayesianRidge(log) + 2026 Forecast
 ├── data/
-│   ├── country/            # 25개국 관광 데이터 (한국관광데이터랩)
+│   ├── country/            # 24개국 + ETC 국가 관광 데이터 (한국관광데이터랩)
 │   ├── processed/          # 통합 데이터셋
 │   ├── exchange/           # USD/KRW 환율
 │   ├── holiday/            # 지역별 행사/축제 데이터
@@ -125,7 +125,7 @@ python run_v9.py    # → outputs/v9_final_*.csv, outputs/v9_forecast_2026_dampe
 
 ## 25 Countries (4 Groups)
 
-- **A1 Western Surge**: 미국, 영국, 프랑스, 독일, 캐나다, 호주, 멕시코, 튀르키예, 사우디, 카자흐스탄
+- **A1 Western|Middle Eastern Surge**: 미국, 영국, 프랑스, 독일, 캐나다, 호주, 멕시코, 튀르키예, 사우디, 카자흐스탄
 - **A2 Asia Surge**: 싱가포르, 대만, 인도, 인도네시아, 필리핀, 몽골
 - **B Recovering**: 일본, 중국, 베트남, 홍콩, 말레이시아
 - **C Underperform**: 러시아, 태국, 아랍에미리트
