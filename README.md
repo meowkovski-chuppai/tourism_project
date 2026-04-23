@@ -121,7 +121,7 @@ python run_v9.py    # → outputs/v9_final_*.csv, outputs/v9_forecast_2026_dampe
 - **BayesianRidge(log)**: log-space에서 메타러닝 → 소규모 국가 예측 개선
 - **Dampened Rolling**: 2026 예측 시 lag에 예측값 70% + 작년 실제 30% 혼합 → 오차 누적 억제
 - **COVID Lag Contamination**: 2020~2023 lag feature가 COVID 이상치 전파 → 구간 제외
-- **Structural Break (THAAD)**: 2015~2017 중국 데이터 이상 → 학습 기간 2018~ 시작
+- **Structural Break (THAAD)**: 2015~2017 - 중국 데이터 이상 → 학습 기간 - 2018~ 시작
 
 ## 25 Countries (4 Groups)
 
